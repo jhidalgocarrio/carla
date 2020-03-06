@@ -78,7 +78,7 @@ namespace CollisionStageConstants {
 
       bool collision_hazard = false;
       float available_distance_margin = std::numeric_limits<float>::infinity();
-      float other_vehicle_velocity = 0.0f;
+      cg::Vector3D other_vehicle_velocity;
       const SimpleWaypointPtr safe_point_junction = data.safe_point_after_junction;
 
       try {
@@ -96,7 +96,7 @@ namespace CollisionStageConstants {
                     });
 
         std::sort(collision_candidates.begin(), collision_candidates.end(),
-                  [&ego_location] (const ActorInfo& a_info_1, const ActorInfo& a_info_2) {
+                  [&ego_location] (const ActorInfo a_info_1, const ActorInfo a_info_2) {
                     const cg::Location& e_loc = ego_location;
                     const cg::Location loc_1 = a_info_1.second->GetLocation();
                     const cg::Location loc_2 = a_info_2.second->GetLocation();
@@ -140,7 +140,7 @@ namespace CollisionStageConstants {
 
                     collision_hazard = true;
                     available_distance_margin = negotiation_result.second;
-                    other_vehicle_velocity = other_actor->GetVelocity().Length();
+                    other_vehicle_velocity = other_actor->GetVelocity();
                   }
                 }
               }

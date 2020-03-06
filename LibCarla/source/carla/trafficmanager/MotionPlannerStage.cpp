@@ -81,7 +81,8 @@ namespace PlannerConstants {
       const ActorId actor_id = actor->GetId();
 
       const auto vehicle = boost::static_pointer_cast<cc::Vehicle>(actor);
-      const float current_velocity = vehicle->GetVelocity().Length();
+      const cg::Vector3D current_velocity_vector = vehicle->GetVelocity();
+      const float current_velocity = current_velocity_vector.Length();
 
       const auto current_time = chr::system_clock::now();
 
@@ -108,22 +109,22 @@ namespace PlannerConstants {
       float dynamic_target_velocity = parameters.GetVehicleTargetVelocity(actor) / 3.6f;
 
       //////////////////////// Collision related data handling ///////////////////////////
-      float other_vehicle_velocity = 0.0f;
-      float relative_velocity = 0.0f;
-
       if (collision_data.hazard)
       {
-        other_vehicle_velocity = collision_data.other_vehicle_velocity;
-        relative_velocity =  current_velocity - other_vehicle_velocity;
+        cg::Vector3D other_vehicle_velocity = collision_data.other_vehicle_velocity;
+        float ego_relative_velocity =  (current_velocity_vector - other_vehicle_velocity).Length();
 
-        if (relative_velocity > 0.0f
+        cg::Vector3D ego_heading = actor->GetTransform().GetForwardVector();
+        float other_velocity_along_heading = cg::Math::Dot(other_vehicle_velocity, ego_heading);
+
+        if (ego_relative_velocity > 0.0f
             && collision_data.distance_to_other_vehicle > CRITICAL_BRAKING_MARGIN_1)
         {
-          dynamic_target_velocity = std::max(other_vehicle_velocity, STATIONARY_LEAD_APPROACH_SPEED_1);
-        } else if (relative_velocity > 0.0f
+          dynamic_target_velocity = std::max(other_velocity_along_heading, STATIONARY_LEAD_APPROACH_SPEED_1);
+        } else if (ego_relative_velocity > 0.0f
             && collision_data.distance_to_other_vehicle > CRITICAL_BRAKING_MARGIN_2)
         {
-          dynamic_target_velocity = std::max(other_vehicle_velocity, STATIONARY_LEAD_APPROACH_SPEED_2);
+          dynamic_target_velocity = std::max(other_velocity_along_heading, STATIONARY_LEAD_APPROACH_SPEED_2);
         }
       }
       ///////////////////////////////////////////////////////////////////////////////////

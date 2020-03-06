@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "carla/client/Actor.h"
+#include "carla/geom/Vector3D.h"
 #include "carla/Memory.h"
 #include "carla/rpc/ActorId.h"
 
@@ -64,7 +65,7 @@ namespace traffic_manager {
   struct CollisionToPlannerData {
     bool hazard;
     float distance_to_other_vehicle;
-    float other_vehicle_velocity;
+    cg::Vector3D other_vehicle_velocity;
   };
 
   /// Type of data sent by the localization stage to the traffic light stage.

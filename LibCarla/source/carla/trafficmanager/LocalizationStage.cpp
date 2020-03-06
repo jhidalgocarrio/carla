@@ -189,16 +189,19 @@ namespace LocalizationConstants {
         PushWaypoint(waypoint_buffer, actor_id, next_wp);
       }
 
+      // Begining point of the waypoint buffer;
+      const SimpleWaypointPtr& updated_front_waypoint = waypoint_buffer.front();
+
       // Updating geodesic grid position for actor.
       track_traffic.UpdateGridPosition(actor_id, waypoint_buffer);
 
       // Generating output.
       const float target_point_distance = std::max(std::ceil(vehicle_velocity * TARGET_WAYPOINT_TIME_HORIZON),
           TARGET_WAYPOINT_HORIZON_LENGTH);
-      SimpleWaypointPtr target_waypoint = waypoint_buffer.front();
+      SimpleWaypointPtr target_waypoint = updated_front_waypoint;
       for (uint64_t j = 0u;
           (j < waypoint_buffer.size()) &&
-          (waypoint_buffer.front()->DistanceSquared(target_waypoint)
+          (updated_front_waypoint->DistanceSquared(target_waypoint)
           < std::pow(target_point_distance, 2));
           ++j) {
         target_waypoint = waypoint_buffer.at(j);
@@ -211,23 +214,6 @@ namespace LocalizationConstants {
         dot_product *= -1.0f;
       }
 
-      ///////////////////////////////// DEBUG //////////////////////////////////
-      // debug_helper.DrawArrow(vehicle_location + cg::Location(0, 0, 1),
-      //                        target_location + cg::Location(0, 0, 1),
-      //                        0.2f, 0.2f, {0u, 255u, 255u}, 0.05f);
-
-      // uint b_size = static_cast<uint32_t>(waypoint_buffer.size());
-      // uint b_step = 5;
-      // uint b_step_size = b_size/b_step;
-      // for (uint j = 0u; j < b_step; ++j) {
-      //   auto first = waypoint_buffer.at(j * b_step_size);
-      //   auto second = waypoint_buffer.at(std::min((j+1) * b_step_size, b_size-1));
-      //   debug_helper.DrawLine(first->GetLocation() + cg::Location(0, 0, 1),
-      //                         second->GetLocation() + cg::Location(0, 0, 1),
-      //                         0.2f, {255u, 255u, 0u}, 0.05f);
-      // }
-      //////////////////////////////////////////////////////////////////////////
-
       float distance = 0.0f; // TODO: use in PID
 
       // Filtering out false junctions on highways:
@@ -237,10 +223,10 @@ namespace LocalizationConstants {
       const float speed_limit = vehicle_reference->GetSpeedLimit();
       const float look_ahead_distance = std::max(2.0f * vehicle_velocity, MINIMUM_JUNCTION_LOOK_AHEAD);
 
-      SimpleWaypointPtr look_ahead_point = waypoint_buffer.front();
+      SimpleWaypointPtr look_ahead_point = updated_front_waypoint;
       uint64_t look_ahead_index = 0u;
       for (uint64_t j = 0u;
-          (waypoint_buffer.front()->DistanceSquared(look_ahead_point)
+          (updated_front_waypoint->DistanceSquared(look_ahead_point)
           < std::pow(look_ahead_distance, 2)) &&
           (j < waypoint_buffer.size());
           ++j) {
@@ -249,7 +235,7 @@ namespace LocalizationConstants {
       }
 
       bool approaching_junction = false;
-      if (look_ahead_point->CheckJunction() && !(waypoint_buffer.front()->CheckJunction())) {
+      if (look_ahead_point->CheckJunction() && !(updated_front_waypoint->CheckJunction())) {
         if (speed_limit*3.6f > HIGHWAY_SPEED) {
           for (uint64_t j = 0u; (j < look_ahead_index) && !approaching_junction; ++j) {
             SimpleWaypointPtr swp = waypoint_buffer.at(j);
@@ -304,12 +290,12 @@ namespace LocalizationConstants {
         }
         collision_message.safe_point_after_junction = final_safe_points[actor_id];
       }
-      collision_message.closest_waypoint = waypoint_buffer.front();
+      collision_message.closest_waypoint = updated_front_waypoint;
       collision_message.junction_look_ahead_waypoint = waypoint_buffer.at(look_ahead_index);
 
       LocalizationToTrafficLightData &traffic_light_message = current_traffic_light_frame->at(i);
       traffic_light_message.actor = vehicle;
-      traffic_light_message.closest_waypoint = waypoint_buffer.front();
+      traffic_light_message.closest_waypoint = updated_front_waypoint;
       traffic_light_message.junction_look_ahead_waypoint = waypoint_buffer.at(look_ahead_index);
 
       // Updating idle time when necessary.

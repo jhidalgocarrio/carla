@@ -1,4 +1,6 @@
-## latest
+## CARLA 0.9.8
+
+  * Added beta version sumo-carla co-simulation.
   * Traffic Manager:
     - Added benchmark
     - Added synchronous mode
@@ -9,10 +11,13 @@
     - Implemented intersection anticipation
     - Implemented vehicle destruction when stuck
     - Implemented tunable parameters
+    - Revamped lane changes
   * Added landmark class for signal-related queries.
   * Added support to parse OpenDRIVE signals.
   * Added junction class as queryable object from waypoint
+  * Added timeout to World Tick
   * Added simple physical map generation from standalone OpenDRIVE data
+  * Added support for generating walker navigation on server-side
   * Added support for new geometry: `spiral`, `poly3`, and `paramPoly3`
   * Improved `get_waypoint(location)` performance
   * New weather system: night time, fog, rain ripples, and now wind affects vegetation and rain (not car physics)

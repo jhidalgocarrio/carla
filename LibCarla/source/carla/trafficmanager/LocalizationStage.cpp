@@ -139,10 +139,20 @@ namespace LocalizationConstants {
       }
 
       // Assign a lane change.
-      const SimpleWaypointPtr front_waypoint = waypoint_buffer.front();
+
       const ChangeLaneInfo lane_change_info = parameters.GetForceLaneChange(vehicle);
-      const bool force_lane_change = lane_change_info.change_lane;
-      const bool lane_change_direction = lane_change_info.direction;
+      bool force_lane_change = lane_change_info.change_lane;
+      bool lane_change_direction = lane_change_info.direction;
+
+      if (!force_lane_change) {
+        float perc_keep_right = parameters.GetKeepRightPercentage(vehicle);
+        if (perc_keep_right >= 0.0f && perc_keep_right >= (rand() % 101)) {
+            force_lane_change = true;
+            lane_change_direction = true;
+        }
+      }
+
+      const SimpleWaypointPtr front_waypoint = waypoint_buffer.front();
       const double lane_change_distance = std::pow(std::max(10.0f * vehicle_velocity, INTER_LANE_CHANGE_DISTANCE), 2);
 
       if (((parameters.GetAutoLaneChange(vehicle) || force_lane_change) && !front_waypoint->CheckJunction())
@@ -498,7 +508,6 @@ namespace LocalizationConstants {
   SimpleWaypointPtr LocalizationStage::AssignLaneChange(Actor vehicle, const cg::Location &vehicle_location,
                                                         bool force, bool direction)
   {
-    // TODO: Implement keep right rule.
 
     const ActorId actor_id = vehicle->GetId();
     const float vehicle_velocity = vehicle->GetVelocity().Length();
@@ -585,13 +594,11 @@ namespace LocalizationConstants {
         bool distant_right_lane_free = false;
 
         // Check if the neighbouring lanes near the obstructing vehicle are free of other vehicles.
-        bool distant_lane_availability = false;
         bool left_right = true;
         for (auto& candidate_lane_wp: other_neighbouring_lanes) {
           if (candidate_lane_wp != nullptr &&
               track_traffic.GetPassingVehicles(candidate_lane_wp->GetId()).size() == 0) {
 
-            distant_lane_availability = true;
             if (left_right) distant_left_lane_free = true;
             else distant_right_lane_free = true;
 

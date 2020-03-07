@@ -96,7 +96,7 @@ namespace CollisionStageConstants {
                     });
 
         std::sort(collision_candidates.begin(), collision_candidates.end(),
-                  [&ego_location] (const ActorInfo a_info_1, const ActorInfo a_info_2) {
+                  [&ego_location] (const ActorInfo& a_info_1, const ActorInfo& a_info_2) {
                     const cg::Location& e_loc = ego_location;
                     const cg::Location loc_1 = a_info_1.second->GetLocation();
                     const cg::Location loc_2 = a_info_2.second->GetLocation();

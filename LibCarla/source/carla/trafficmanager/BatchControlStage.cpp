@@ -21,6 +21,8 @@ BatchControlStage::BatchControlStage(
 
   // Initializing number of vehicles to zero in the beginning.
   number_of_vehicles = 0u;
+  // Initializing time instance for limiting throughput in asynchronous mode.
+  // previous_frame_instance = chr::system_clock::now();
 }
 
 BatchControlStage::~BatchControlStage() {}
@@ -32,15 +34,15 @@ void BatchControlStage::Action() {
 
     carla::rpc::VehicleControl vehicle_control;
 
-      const PlannerToControlData &element = data_frame->at(i);
-      if (!element.actor || !element.actor->IsAlive()) {
-        continue;
-      }
-      const carla::ActorId actor_id = element.actor->GetId();
+    const PlannerToControlData &element = data_frame->at(i);
+    if (!element.actor || !element.actor->IsAlive()) {
+      continue;
+    }
+    const carla::ActorId actor_id = element.actor->GetId();
 
-      vehicle_control.throttle = element.throttle;
-      vehicle_control.brake = element.brake;
-      vehicle_control.steer = element.steer;
+    vehicle_control.throttle = element.throttle;
+    vehicle_control.brake = element.brake;
+    vehicle_control.steer = element.steer;
 
     commands->at(i) = carla::rpc::Command::ApplyVehicleControl(actor_id, vehicle_control);
   }
@@ -65,28 +67,44 @@ void BatchControlStage::DataSender() {
   messenger->Pop();
   bool synch_mode = parameters.GetSynchronousMode();
 
-  if (commands != nullptr) {
-    // Run asynchronous mode commands.
-    episode_proxy_bcs.Lock()->ApplyBatch(*commands.get(), false);
-  }
-
-  // Limiting updates to 100 frames per second.
+  // Asynchronous mode.
   if (!synch_mode) {
-    std::this_thread::sleep_for(10ms);
-  } else {
+    // Apply batch command through an asynchronous RPC call.
+    if (commands != nullptr) {
+      episode_proxy_bcs.Lock()->ApplyBatch(*commands.get(), false);
+    }
+  }
+  // Synchronous mode.
+  else {
     std::unique_lock<std::mutex> lock(step_execution_mutex);
-    // Get timeout value in milliseconds.
-    double timeout = parameters.GetSynchronousModeTimeOutInMiliSecond();
-    // Wait for service to finish.
-    step_execution_notifier.wait_for(lock, timeout * 1ms, [this]() { return run_step.load(); });
+    // TODO: Re-introduce timeout while waiting for RunStep() call.
+    while (!run_step.load()) {
+      step_execution_notifier.wait_for(lock, 1ms, [this]() {return run_step.load();});
+    }
+    // Apply batch command in synchronous RPC call.
+    if (commands != nullptr) {
+      episode_proxy_bcs.Lock()->ApplyBatchSync(*commands.get(), false);
+    }
+    // Set flag to false, unblock RunStep() call and release mutex lock.
     run_step.store(false);
+    step_complete_notifier.notify_one();
+    lock.unlock();
   }
 }
 
 
 bool BatchControlStage::RunStep() {
-  // Set run set flag.
-  run_step.store(true);
+
+  bool synch_mode = parameters.GetSynchronousMode();
+  if (synch_mode) {
+    std::unique_lock<std::mutex> lock(step_execution_mutex);
+    // Set flag to true, notify DataSender and wait for a return notification
+    run_step.store(true);
+    step_execution_notifier.notify_one();
+    while (run_step.load()) {
+      step_complete_notifier.wait_for(lock, 1ms, [this]() {return !run_step.load();});
+    }
+  }
 
   return true;
 }
